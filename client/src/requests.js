@@ -42,20 +42,20 @@ export async function loadJobs() {
   return jobs;
 }
 
-export async function loadJob(id) {
-  const query = gql`query JobQuery($id: ID!) {
-    job(id: $id) {
+const JobQuery = gql`query JobQuery($id: ID!) {
+  job(id: $id) {
+    id
+    title
+    description
+    company {
+      name
       id
-      title
-      description
-      company {
-        name
-        id
-      }
     }
-  }`;
+  }
+}`
 
-  const { data: { job } } = await client.query({ query, variables: { id } });
+export async function loadJob(id) {
+  const { data: { job } } = await client.query({ query: JobQuery, variables: { id } });
   return job;
 }
 
@@ -81,14 +81,24 @@ export async function createJob(input) {
     job: createJob(input: $input) {
       id
       title
+      description
       company {
-        id
         name
-        description
+        id
       }
     }
   }`;
 
-  const { data: { job } } = await client.mutate({ mutation, variables: { input } });
+  const { data: { job } } = await client.mutate({
+    mutation,
+    variables: { input },
+    update: (cache, mutationResult) => {
+      cache.writeQuery({
+        query: JobQuery,
+        variables: { id: mutationResult.data.job.id },
+        data: mutationResult.data
+      })
+    } 
+  });
   return job;
 }
